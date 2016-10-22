@@ -3,63 +3,92 @@
 #include <set>
 #include <map>
 #include <fstream>
+#include <time.h>
+#include <algorithm>
 
 
-char ChageToOpposite(char &a) {
-    if (a == '0') {
-        a = '1';
+char ChageToOpposite(char &symbol) {
+    if (symbol == '0') {
+        symbol = '1';
     } else {
-        a = '0';
+        symbol = '0';
     }
-    return a;
+    return symbol;
 }
 
 
-size_t ClusterBinaryStrings(std::set<std::string> objects) {
-    size_t cluster_number = 0;
-    size_t current_number;
-    std::map<std::string, size_t> clusters;
-    for (const auto v : objects) {
-        if (clusters[v] >  0) {
-            current_number = clusters[v];
-        } else {
-            current_number = ++cluster_number;
-            clusters[v] = current_number;
+std::set<std::string> FindNeighbours (std::string &current_string) {
+    std::set<std::string> neighbours;
+    std::string neighbour = current_string;
+    for (size_t i = 0; i != current_string.size(); ++i) {
+        neighbour[i] = ChageToOpposite(neighbour[i]);
+        neighbours.insert(neighbour);
+        for (size_t j = i + 1; j != neighbour.size(); ++j) {
+            neighbour[j] = ChageToOpposite(neighbour[j]);
+            neighbours.insert(neighbour);
+            neighbour[j] = ChageToOpposite(neighbour[j]);
         }
-        std::string neighbour = v;
-        for (size_t i = 0; i != v.size() - 1; ++i) {
-            neighbour[i] = ChageToOpposite(neighbour[i]);
-            if (objects.find(neighbour) != objects.end()) {
-                clusters[neighbour] = current_number;
+        neighbour[i] = ChageToOpposite(neighbour[i]);
+    }
+    return neighbours;
+}
+
+size_t cluster_number;
+
+bool ClusterMaking (std::string current_string, std::map<std::string, size_t> &clusters) {
+    size_t current_number = cluster_number;
+    bool new_cluster = true;
+    std::set<std::string> neighbours = FindNeighbours(current_string);
+    for (const auto & neighbour : neighbours) {
+        if (clusters.find(neighbour) != clusters.end()) {
+            if (clusters[neighbour] != -1) {
+                current_number = clusters[neighbour];
+                new_cluster = false;
             }
-            for (size_t j = i + 1; j != v.size(); ++j) {
-                neighbour[j] = ChageToOpposite(neighbour[j]);
-                if (objects.find(neighbour) != objects.end()) {
-                    clusters[neighbour] = current_number;
-                }
-                neighbour[j] = ChageToOpposite(neighbour[j]);
-            }
-            neighbour[i] = ChageToOpposite(neighbour[i]);
+        } else {
+            neighbours.erase(neighbours.find(neighbour));
+
         }
     }
+    for (const auto & neighbour : neighbours) {
+        clusters[neighbour] = current_number;
+    }
+    return new_cluster;
+}
 
-    return cluster_number;
+void ClusterBinaryStrings(std::map<std::string, size_t> &clusters) {
+    std::string current_string;
+    cluster_number = 1;
+    for (const  auto & key: clusters) {
+        current_string = key.first;
+        if (clusters[current_string] == -1) {
+            if (ClusterMaking(current_string, clusters)) {
+                ++cluster_number;
+            }
+        }
+    }
 }
 
 int main()
 {
-    std::ifstream fin("/home/natalia/Documents/Algo2/binary_strings_clusterization/example.txt");
+    clock_t time;
+    std::ifstream fin("example.txt");
     size_t number_of_elements, string_size;
     fin >> number_of_elements >> string_size;
-    std::set<std::string> objects;
+    std::map<std::string, size_t> clusters;
     std::string binary_string;
     for (size_t i = 0; i < number_of_elements; ++i) {
         fin >> binary_string;
-        objects.insert(binary_string);
+        clusters[binary_string] = -1;
     }
     fin.close();
-    size_t cluster_number = ClusterBinaryStrings(objects);
 
-    std::cout << cluster_number << std::endl;
+
+    time = clock();
+    ClusterBinaryStrings(clusters);
+
+    std::cout << cluster_number - 1 << std::endl;
+
+    time = clock() - time;
     return 0;
 }
